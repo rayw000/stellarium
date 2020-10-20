@@ -5,6 +5,8 @@ LINK_DIRECTORIES(${BUILD_DIR}/src)
 SET(ExtraCalendar_SRCS
     ExtraCalendar.hpp
     ExtraCalendar.cpp
+    chinese/lunisolar.hpp
+    chinese/lunisolar.cpp
     )
 
 ADD_LIBRARY(ExtraCalendar-static STATIC ${ExtraCalendar_SRCS})
