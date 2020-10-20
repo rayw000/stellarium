@@ -27,23 +27,22 @@
 #include "chinese/lunisolar.hpp"
 
 #include <QDebug>
-#include <sstream>
 
-static std::string days[] = {
+static const char* days[] = {
   "初一", "初二", "初三", "初四", "初五", "初六", "初七", "初八", "初九", "初十",
   "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十",
   "廿一", "廿二", "廿三", "廿四", "廿五", "廿六", "廿七", "廿八", "廿九", "三十"
 };
 
-static std::string months[] = {
+static const char* months[] = {
   "正", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "腊"
 };
 
-static std::string zodiacX[] = {
+static const char* zodiacX[] = {
   "庚", "辛", "壬", "癸", "甲", "乙", "丙", "丁", "戊", "己"
 };
 
-static std::string zodiacY[] = {
+static const char* zodiacY[] = {
   "子", "丑", "寅", "卯", "辰", "巳", "无", "为", "申", "酉", "戌", "亥"
 };
 
@@ -60,10 +59,12 @@ StelPluginInfo ExtraCalendarStelPluginInterface::getPluginInfo() const
 {
 	StelPluginInfo info;
 	info.id = "ExtraCalendar";
-	info.displayedName = "Extra Calendar";
-	info.authors = "Stellarium team";
-	info.contact = "www.stellarium.org";
-	info.description = "An minimal plugin example.";
+	info.displayedName = N_("Extra Calendar");
+	info.authors = "Ray";
+	info.contact = "ray.hackmylife@gmail.com";
+	info.description = N_("Display various calendars. Currently support Chinese Lunisolar (1900-2100).");
+  info.version = EXTRACALENDAR_PLUGIN_VERSION;
+	info.license = EXTRACALENDAR_PLUGIN_LICENSE;
 	return info;
 }
 
@@ -73,7 +74,7 @@ StelPluginInfo ExtraCalendarStelPluginInterface::getPluginInfo() const
 ExtraCalendar::ExtraCalendar()
 {
 	setObjectName("ExtraCalendar");
-  font.setPixelSize(25);
+  font.setPixelSize(14);
 }
 
 /*************************************************************************
@@ -89,7 +90,7 @@ ExtraCalendar::~ExtraCalendar()
 double ExtraCalendar::getCallOrder(StelModuleActionName actionName) const
 {
 	if (actionName==StelModule::ActionDraw)
-		return StelApp::getInstance().getModuleMgr().getModule("NebulaMgr")->getCallOrder(actionName)+10.;
+		return StelApp::getInstance().getModuleMgr().getModule("LabelMgr")->getCallOrder(actionName)+10.;
 	return 0;
 }
 
@@ -107,15 +108,20 @@ void ExtraCalendar::init()
 *************************************************************************/
 void ExtraCalendar::draw(StelCore* core)
 {
-	StelPainter painter(core->getProjection2d());
-	painter.setColor(1,1,1,1);
-	painter.setFont(font);
-  Gregorian* g = new Gregorian();
-  Lunisolar* l = new Lunisolar();
-
   QDateTime datetime = StelUtils::jdToQDateTime(core->getJD());
   datetime.setTimeSpec(Qt::UTC);
   QDate date = datetime.toLocalTime().date();
+
+  // TODO: configurable calendar selection
+  QString calendarName("Chinese Lunisolar");
+
+  if (date.year() < 1901 || date.year() > 2099) {
+    qDebug() << "ExtraCalendar only supports years between 1900 and 2100.";
+    return;
+  }
+
+  Gregorian* g = new Gregorian();
+  Lunisolar* l = new Lunisolar();
 
   g->year = date.year();
   g->month = date.month();
@@ -123,18 +129,16 @@ void ExtraCalendar::draw(StelCore* core)
 
   *l = getLunisolarFromGregorian(*g);
 
-  std::ostringstream oss;
-  oss << zodiacX[(l->year - 1900) % 10] << zodiacY[(l->year - 1900) % 12] << "年"
-     << (l->isleap ? "闰" : "")
-     << months[l->month - 1] << "月"
-     << days[l->day - 1]
-     << std::endl;
-  painter.drawText(300, 300, oss.str().c_str());
-}
+  QString text;
+  QTextStream oss(&text);
+  oss << "[" << q_(calendarName) << "] "
+      << q_(zodiacX[(l->year - 1900) % 10]) << q_(zodiacY[(l->year - 1900) % 12]) << q_("年")
+      << q_(l->isleap ? "闰" : "")
+      << q_(months[l->month - 1]) << q_("月")
+      << q_(days[l->day - 1]);
 
-/*************************************************************************
- Update calendar when time changes
-*************************************************************************/
-void ExtraCalendar::update(double deltaTime) {
-  // qDebug() << deltaTime;
+  StelPainter painter(core->getProjection2d());
+	painter.setColor(1,1,1,1);
+	painter.setFont(font);
+  painter.drawText(200, 200, text);
 }
